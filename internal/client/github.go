@@ -170,3 +170,7 @@ func (c *githubClient) Upload(
 	)
 	return err
 }
+
+func (c *githubClient) GetInfoByID(ctx *context.Context, commitID string) (*CommitInfo, error) {
+	return nil, nil
+}

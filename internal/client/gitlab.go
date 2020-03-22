@@ -2,7 +2,10 @@ package client
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -303,4 +306,62 @@ func extractProjectFileHashFrom(projectFileURL string) (string, error) {
 		"fileHash":       fileHash,
 	}).Debug("extracted file hash")
 	return fileHash, nil
+}
+
+func (c *gitlabClient) GetInfoByID(ctx *context.Context, commitID string) (*CommitInfo, error) {
+	projectID := ctx.Config.Release.GitLab.Owner + "/" + ctx.Config.Release.GitLab.Name
+	info, _, err := c.client.Commits.GetCommit(projectID, commitID)
+	if err != nil {
+		return nil, err
+	}
+
+	avatar, err := c.getAvatar(ctx, info.AuthorEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := new(CommitInfo)
+	ret.ID = info.ID
+	ret.ShortID = info.ShortID
+	ret.CreatedAt = info.CreatedAt
+	ret.ParentIds = info.ParentIDs
+	ret.Title = info.Title
+	ret.Message = info.Message
+	ret.AuthorName = info.AuthorName
+	ret.AuthorEmail = info.AuthorEmail
+	ret.AuthoredDate = info.AuthoredDate
+	ret.CommitterName = info.CommitterName
+	ret.CommitterEmail = info.CommitterEmail
+	ret.CommittedDate = info.CommittedDate
+	ret.BaseURL = ctx.Config.GitLabURLs.Download
+	ret.AvatarURL = avatar
+
+	return ret, nil
+}
+
+func (c *gitlabClient) getAvatar(ctx *context.Context, email string) (string, error) {
+	u := fmt.Sprintf("%v/avatar?email=%v&size=8", ctx.Config.GitLabURLs.API, email)
+
+	resp, err := http.Get(u)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	type avatar struct {
+		AvatarURL string `json:"avatar_url"`
+	}
+	a := new(avatar)
+
+	err = json.Unmarshal(body, a)
+	if err != nil {
+		return "", err
+	}
+
+	return a.AvatarURL, nil
 }

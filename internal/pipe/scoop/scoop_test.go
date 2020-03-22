@@ -877,6 +877,10 @@ type DummyClient struct {
 	Content     string
 }
 
+func (c *DummyClient) GetInfoByID(ctx *context.Context, commitID string) (*client.CommitInfo, error) {
+	return nil, nil
+}
+
 func (client *DummyClient) CreateRelease(ctx *context.Context, body string) (releaseID string, err error) {
 	return
 }

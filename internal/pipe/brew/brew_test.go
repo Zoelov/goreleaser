@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/goreleaser/goreleaser/internal/artifact"
+	"github.com/goreleaser/goreleaser/internal/client"
 	"github.com/goreleaser/goreleaser/internal/testlib"
 	"github.com/goreleaser/goreleaser/pkg/config"
 	"github.com/goreleaser/goreleaser/pkg/context"
@@ -726,6 +727,10 @@ func TestGHFolder(t *testing.T) {
 type DummyClient struct {
 	CreatedFile bool
 	Content     string
+}
+
+func (c *DummyClient) GetInfoByID(ctx *context.Context, commitID string) (*client.CommitInfo, error) {
+	return nil, nil
 }
 
 func (client *DummyClient) CreateRelease(ctx *context.Context, body string) (releaseID string, err error) {

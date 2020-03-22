@@ -10,8 +10,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/apex/log"
+	"github.com/goreleaser/goreleaser/internal/client"
 	"github.com/goreleaser/goreleaser/internal/git"
 	"github.com/goreleaser/goreleaser/internal/pipe"
 	"github.com/goreleaser/goreleaser/pkg/context"
@@ -81,10 +83,13 @@ func (Pipe) Run(ctx *context.Context) error {
 		changelogStringJoiner = "   \n"
 	}
 
+	// tag := ctx.Git.CurrentTag
 	ctx.ReleaseNotes = strings.Join(
 		[]string{
 			ctx.ReleaseHeader,
-			"## Changelog",
+			"# Changelog",
+			time.Now().Format("2006-01-02 15:04:05"),
+			"</br>\n",
 			strings.Join(entries, changelogStringJoiner),
 			ctx.ReleaseFooter,
 		},
@@ -127,7 +132,130 @@ func buildChangelog(ctx *context.Context) ([]string, error) {
 	if err != nil {
 		return entries, err
 	}
+	entries, err = formatChangelog(ctx, entries)
+	if err != nil {
+		return entries, err
+	}
 	return sortEntries(ctx, entries), nil
+}
+
+func formatChangelog(ctx *context.Context, entries []string) ([]string, error) {
+	c, err := client.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	fixList := make([]string, 0)
+	fixList = append(fixList, "### 🐛Bug fixes")
+	fixList = append(fixList, "***")
+
+	featureList := make([]string, 0)
+	featureList = append(featureList, "### 🚀Features")
+	featureList = append(featureList, "***")
+
+	choreList := make([]string, 0)
+	choreList = append(choreList, "### 🔧Chores and Improvements")
+	choreList = append(choreList, "***")
+
+	otherList := make([]string, 0)
+	otherList = append(otherList, "### 📦Other")
+	otherList = append(otherList, "***")
+
+	// font := "<font color=#0366d6 size=4 face=黑体>%v</font> "
+
+	for _, v := range entries {
+		splitStr := strings.SplitN(v, " ", 2)
+		commitID := splitStr[0]
+		log := splitStr[1]
+
+		info, err := c.GetInfoByID(ctx, commitID)
+		if err != nil {
+			return nil, err
+		}
+
+		img := `<img src="%v" width="20" height="20" onclick=false title="%v"/>`
+		img = fmt.Sprintf(img, info.AvatarURL, info.CommitterEmail)
+		span := `<span style="display: inline-block;"> %v</span>`
+		span = fmt.Sprintf(span, img)
+		when := info.CommittedDate
+		at := when.Format("2006-01-02 15:04:05")
+		// avatar := fmt.Sprintf("![logo](%v)", info.AvatarURL)
+		url := fmt.Sprintf("%v/%v/%v/commit/%v", info.BaseURL, ctx.Config.Release.GitLab.Owner, ctx.Config.Release.GitLab.Name, info.ID)
+		prefix := fmt.Sprintf("__[%v](%v)__", commitID, url)
+
+		if strings.HasPrefix(log, "fix:") {
+			theLog := strings.Replace(log, "fix:", "", 1)
+			theLog = strings.TrimSuffix(theLog[0:len(theLog)-1], " ")
+			theLog = strings.TrimPrefix(theLog, " ")
+			theLog = fmt.Sprintf(" ___%v___ ", theLog)
+			email := fmt.Sprintf(" created by %v\n", span)
+			suffix := fmt.Sprintf("*at:%v*\n", at)
+			theLog = "* " + prefix + " " + theLog + email + suffix
+
+			fixList = append(fixList, theLog)
+		} else if strings.HasPrefix(log, "feat:") {
+			theLog := strings.Replace(log, "feat:", "", 1)
+			theLog = strings.TrimSuffix(theLog[0:len(theLog)-1], " ")
+			theLog = strings.TrimPrefix(theLog, " ")
+			theLog = fmt.Sprintf("___%v___", theLog)
+			email := fmt.Sprintf(" created by %v\n", span)
+			suffix := fmt.Sprintf("*at:%v*\n", at)
+			theLog = "* " + prefix + " " + theLog + email + suffix
+
+			featureList = append(featureList, theLog)
+		} else if strings.HasPrefix(log, "chore:") {
+			theLog := strings.Replace(log, "chore:", "", 1)
+			theLog = strings.TrimSuffix(theLog[0:len(theLog)-1], " ")
+			theLog = strings.TrimPrefix(theLog, " ")
+			theLog = fmt.Sprintf("___%v___", theLog)
+			email := fmt.Sprintf(" created by %v\n", span)
+			suffix := fmt.Sprintf("*at:%v*\n", at)
+			theLog = "* " + prefix + " " + theLog + email + suffix
+
+			choreList = append(choreList, theLog)
+		} else if strings.HasPrefix(log, "pref:") {
+			theLog := strings.Replace(log, "pref:", "", 1)
+			theLog = strings.TrimSuffix(theLog[0:len(theLog)-1], " ")
+			theLog = strings.TrimPrefix(theLog, " ")
+			theLog = fmt.Sprintf("___%v___", theLog)
+			email := fmt.Sprintf(" created by %v\n", span)
+			suffix := fmt.Sprintf("*at:%v*\n", at)
+			theLog = "* " + prefix + " " + theLog + email + suffix
+
+			choreList = append(choreList, theLog)
+		} else {
+			// theLog := log[0:len(log)-1] + "* " + fmt.Sprintf("@%v\n", info.AuthorEmail)
+			theLog := strings.TrimSuffix(log[0:len(log)-1], " ")
+			theLog = strings.TrimPrefix(theLog, " ")
+			theLog = fmt.Sprintf("___%v___", theLog)
+			email := fmt.Sprintf(" created by %v\n", span)
+			suffix := fmt.Sprintf("*at:%v*\n", at)
+			theLog = "* " + prefix + " " + theLog + email + suffix
+
+			otherList = append(otherList, theLog)
+		}
+	}
+
+	ret := make([]string, 0)
+	if len(fixList) > 2 {
+		ret = append(ret, fixList...)
+		ret = append(ret, "<br/>\n")
+	}
+	if len(featureList) > 2 {
+		ret = append(ret, featureList...)
+		ret = append(ret, "<br/>\n")
+	}
+
+	if len(choreList) > 2 {
+		ret = append(ret, choreList...)
+		ret = append(ret, "<br/>\n")
+	}
+
+	if len(otherList) > 2 {
+		ret = append(ret, otherList...)
+		ret = append(ret, "<br/>\n")
+	}
+	return ret, nil
 }
 
 func filterEntries(ctx *context.Context, entries []string) ([]string, error) {

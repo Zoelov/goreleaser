@@ -186,3 +186,7 @@ func (c *giteaClient) Upload(
 	_, err = c.client.CreateReleaseAttachment(owner, repoName, giteaReleaseID, file, artifact.Name)
 	return err
 }
+
+func (c *giteaClient) GetInfoByID(ctx *context.Context, commitID string) (*CommitInfo, error) {
+	return nil, nil
+}
