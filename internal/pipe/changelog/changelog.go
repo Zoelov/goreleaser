@@ -83,11 +83,11 @@ func (Pipe) Run(ctx *context.Context) error {
 		changelogStringJoiner = "   \n"
 	}
 
-	// tag := ctx.Git.CurrentTag
+	tag := ctx.Git.CurrentTag
 	ctx.ReleaseNotes = strings.Join(
 		[]string{
 			ctx.ReleaseHeader,
-			"# Changelog",
+			fmt.Sprintf("## Version %v", tag[1:]),
 			time.Now().Format("2006-01-02 15:04:05"),
 			"</br>\n",
 			strings.Join(entries, changelogStringJoiner),
