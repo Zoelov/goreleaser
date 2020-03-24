@@ -83,14 +83,48 @@ func (Pipe) Run(ctx *context.Context) error {
 		changelogStringJoiner = "   \n"
 	}
 
+	buildFormatlog(ctx, entries)
+
 	tag := ctx.Git.CurrentTag
+
+	joinSlice := make([]string, 0)
+	joinSlice = append(joinSlice, ctx.ReleaseHeader, fmt.Sprintf("## Version %v", tag[1:]), time.Now().Format("2006-01-02 15:04:05"), "</br>\n")
+	if len(ctx.DescriptBody.FixList) > 0 {
+		joinSlice = append(joinSlice, "### 🐛Bug fixes")
+		joinSlice = append(joinSlice, ctx.DescriptBody.FixList...)
+		joinSlice = append(joinSlice, "***")
+	}
+
+	if len(ctx.DescriptBody.FeatList) > 0 {
+		joinSlice = append(joinSlice, "### 🚀New Features")
+		joinSlice = append(joinSlice, ctx.DescriptBody.FeatList...)
+		joinSlice = append(joinSlice, "***")
+	}
+
+	if len(ctx.DescriptBody.ChoreList) > 0 || len(ctx.DescriptBody.PerfList) > 0 {
+		joinSlice = append(joinSlice, "### 🔧Chores and Improvements")
+		joinSlice = append(joinSlice, ctx.DescriptBody.ChoreList...)
+		joinSlice = append(joinSlice, ctx.DescriptBody.PerfList...)
+		joinSlice = append(joinSlice, "***")
+	}
+
+	if len(ctx.DescriptBody.DocsList) > 0 || len(ctx.DescriptBody.StyleList) > 0 ||
+		len(ctx.DescriptBody.RefactorList) > 0 || len(ctx.DescriptBody.TestList) > 0 {
+		joinSlice = append(joinSlice, "### 📦Other")
+		joinSlice = append(joinSlice, ctx.DescriptBody.DocsList...)
+		joinSlice = append(joinSlice, ctx.DescriptBody.StyleList...)
+		joinSlice = append(joinSlice, ctx.DescriptBody.RefactorList...)
+		joinSlice = append(joinSlice, ctx.DescriptBody.TestList...)
+		// joinSlice = append(joinSlice, "***")
+	}
+
 	ctx.ReleaseNotes = strings.Join(
 		[]string{
-			ctx.ReleaseHeader,
-			fmt.Sprintf("## Version %v", tag[1:]),
-			time.Now().Format("2006-01-02 15:04:05"),
-			"</br>\n",
-			strings.Join(entries, changelogStringJoiner),
+			// ctx.ReleaseHeader,
+			// fmt.Sprintf("## Version %v", tag[1:]),
+			// time.Now().Format("2006-01-02 15:04:05"),
+			// "</br>\n",
+			strings.Join(joinSlice, changelogStringJoiner),
 			ctx.ReleaseFooter,
 		},
 		"\n\n",
@@ -132,17 +166,113 @@ func buildChangelog(ctx *context.Context) ([]string, error) {
 	if err != nil {
 		return entries, err
 	}
-	entries, err = formatChangelog(ctx, entries)
-	if err != nil {
-		return entries, err
-	}
 	return sortEntries(ctx, entries), nil
+}
+
+func buildFormatlog(ctx *context.Context, entries []string) error {
+	if ctx.SkipPublish {
+		return nil
+	}
+	fmt.Println("entries len:", len(entries))
+
+	c, err := client.New(ctx)
+	if err != nil {
+		return err
+	}
+
+	blankspace := "&emsp;"
+	for _, entry := range entries {
+		splitStr := strings.SplitN(entry, " ", 2)
+		commitID := splitStr[0]
+		message := splitStr[1]
+
+		info, err := c.GetInfoByID(ctx, commitID)
+		if err != nil {
+			return err
+		}
+
+		commitLink := fmt.Sprintf("%v/%v/%v/commit/%v", info.BaseURL, ctx.Config.Release.GitLab.Owner, ctx.Config.Release.GitLab.Name, info.ID)
+		commitIDLink := fmt.Sprintf(" __[%v](%v)__ ", commitID, commitLink)
+		authMsg := fmt.Sprintf(" by @%v %v", info.AuthorName, info.AuthorEmail)
+		createAt := fmt.Sprintf(" - %v", info.CommittedDate.Format("2006-01-02 15:04:05"))
+
+		if strings.HasPrefix(message, "fix:") {
+			message = truncation(message, "fix:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.FixList = append(ctx.DescriptBody.FixList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "feat:") {
+			message = truncation(message, "feat:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.FeatList = append(ctx.DescriptBody.FeatList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "docs:") {
+			message = truncation(message, "docs:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.DocsList = append(ctx.DescriptBody.DocsList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "style:") {
+			message = truncation(message, "style:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.StyleList = append(ctx.DescriptBody.StyleList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "refactor:") {
+			message = truncation(message, "refactor:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.RefactorList = append(ctx.DescriptBody.RefactorList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "perf:") {
+			message = truncation(message, "perf:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.PerfList = append(ctx.DescriptBody.PerfList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "test:") {
+			message = truncation(message, "test:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.TestList = append(ctx.DescriptBody.TestList, message)
+			continue
+		}
+
+		if strings.HasPrefix(message, "chore:") {
+			message = truncation(message, "chore:")
+			message = " * " + commitIDLink + blankspace + message + authMsg + createAt
+			ctx.DescriptBody.ChoreList = append(ctx.DescriptBody.ChoreList, message)
+			continue
+		}
+
+	}
+
+	return nil
+}
+
+func truncation(message string, prefix string) string {
+	theLog := strings.Replace(message, prefix, "", 1)
+	theLog = strings.TrimSuffix(theLog[0:len(theLog)-1], " ")
+	theLog = strings.TrimPrefix(theLog, " ")
+
+	return theLog
 }
 
 func formatChangelog(ctx *context.Context, entries []string) ([]string, error) {
 	c, err := client.New(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if ctx.Config.Release.Disable {
+		return nil, pipe.Skip("release pipe is disabled")
 	}
 
 	fixList := make([]string, 0)
@@ -158,7 +288,7 @@ func formatChangelog(ctx *context.Context, entries []string) ([]string, error) {
 	choreList = append(choreList, "***")
 
 	otherList := make([]string, 0)
-	otherList = append(otherList, "### 📦Other")
+	otherList = append(otherList, "### 📦Others")
 	otherList = append(otherList, "***")
 
 	// font := "<font color=#0366d6 size=4 face=黑体>%v</font> "

@@ -312,11 +312,13 @@ func (c *gitlabClient) GetInfoByID(ctx *context.Context, commitID string) (*Comm
 	projectID := ctx.Config.Release.GitLab.Owner + "/" + ctx.Config.Release.GitLab.Name
 	info, _, err := c.client.Commits.GetCommit(projectID, commitID)
 	if err != nil {
+		fmt.Println("get commit err:", err)
 		return nil, err
 	}
 
 	avatar, err := c.getAvatar(ctx, info.AuthorEmail)
 	if err != nil {
+		fmt.Println("get avatar err:", err)
 		return nil, err
 	}
 

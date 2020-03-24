@@ -59,6 +59,19 @@ const (
 	TokenTypeGitea TokenType = "gitea"
 )
 
+type TemplateBody struct {
+	FixList      []string
+	DocsList     []string
+	FeatList     []string
+	StyleList    []string
+	RefactorList []string
+	PerfList     []string
+	TestList     []string
+	ChoreList    []string
+	RevertList   []string
+	OtherList    []string
+}
+
 // Context carries along some data through the pipes
 type Context struct {
 	ctx.Context
@@ -80,6 +93,7 @@ type Context struct {
 	PreRelease    bool
 	Parallelism   int
 	Semver        Semver
+	DescriptBody  TemplateBody
 }
 
 // Semver represents a semantic version
@@ -103,12 +117,25 @@ func NewWithTimeout(config config.Project, timeout time.Duration) (*Context, ctx
 
 // Wrap wraps an existing context
 func Wrap(ctx ctx.Context, config config.Project) *Context {
+	tmpl := TemplateBody{
+		FixList:      make([]string, 0),
+		DocsList:     make([]string, 0),
+		FeatList:     make([]string, 0),
+		StyleList:    make([]string, 0),
+		RefactorList: make([]string, 0),
+		PerfList:     make([]string, 0),
+		TestList:     make([]string, 0),
+		ChoreList:    make([]string, 0),
+		OtherList:    make([]string, 0),
+	}
+
 	return &Context{
-		Context:     ctx,
-		Config:      config,
-		Env:         splitEnv(append(os.Environ(), config.Env...)),
-		Parallelism: 4,
-		Artifacts:   artifact.New(),
+		Context:      ctx,
+		Config:       config,
+		Env:          splitEnv(append(os.Environ(), config.Env...)),
+		Parallelism:  4,
+		Artifacts:    artifact.New(),
+		DescriptBody: tmpl,
 	}
 }
 
