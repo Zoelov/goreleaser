@@ -2,7 +2,6 @@ package commitvalid
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -17,25 +16,40 @@ func (Pipe) String() string {
 	return "commit message valider"
 }
 
+type ErrList struct {
+	errs []string
+}
+
+func (e *ErrList) Error() string {
+	msg := strings.Join(e.errs, "\n")
+	return msg
+}
+
 func (Pipe) Run() error {
 	entries, err := getGitLog()
 	if err != nil {
 		return err
 	}
 
+	errCommits := make([]string, 0)
 	for _, commitMsg := range entries {
 		splitMsgs := strings.SplitN(commitMsg, " ", 2)
 		message := splitMsgs[1]
 		err = valid(message)
 		if err != nil {
-			msg := fmt.Sprintf(" %v -- invalid", commitMsg)
-			return errors.New(msg)
+			errCommits = append(errCommits, commitMsg)
+			continue
 		}
 
 		log.Debugf("%v passed.", commitMsg)
 	}
 
-	return nil
+	if len(errCommits) == 0 {
+		return nil
+	}
+
+	err = &ErrList{errCommits}
+	return err
 }
 
 func getGitLog() ([]string, error) {
@@ -66,10 +80,16 @@ const (
 const CommitMessagePattern = `^(?:fixup!\s*)?(\w*)(\(([\w\$\.\*/-].*)\))?\: (.*)|^Merge\ branch(.*)`
 
 func valid(message string) error {
+	if strings.HasPrefix(message, "Merge branch") {
+		return nil
+	}
+	if strings.HasPrefix(message, "Merge remote") {
+		return nil
+	}
+
 	var commitMsgReg = regexp.MustCompile(CommitMessagePattern)
 
 	commitTypes := commitMsgReg.FindAllStringSubmatch(message, -1)
-
 	if len(commitTypes) != 1 {
 		msg := color.New(color.Bold).Sprintf("[%v] not match", message)
 		return errors.New(msg)
@@ -85,10 +105,8 @@ func valid(message string) error {
 		case string(PERF):
 		case string(HOTFIX):
 		default:
-			if !strings.HasPrefix(message, "Merge branch") {
-				msg := color.New(color.Bold).Sprintf("[%v] not match", message)
-				return errors.New(msg)
-			}
+			msg := color.New(color.Bold).Sprintf("[%v] not match", message)
+			return errors.New(msg)
 		}
 	}
 
