@@ -11,6 +11,7 @@ import (
 	"github.com/caarlos0/ctrlc"
 	"github.com/fatih/color"
 	"github.com/goreleaser/goreleaser/internal/middleware"
+	"github.com/goreleaser/goreleaser/internal/pipe/commitvalid"
 	"github.com/goreleaser/goreleaser/internal/pipe/defaults"
 	"github.com/goreleaser/goreleaser/internal/pipeline"
 	"github.com/goreleaser/goreleaser/internal/static"
@@ -68,6 +69,8 @@ func main() {
 	var parallelism = releaseCmd.Flag("parallelism", "Amount tasks to run concurrently").Short('p').Default("4").Int()
 	var timeout = releaseCmd.Flag("timeout", "Timeout to the entire release process").Default("30m").Duration()
 
+	var commitValidCmd = app.Command("commit", "Commit message valider").Alias("ci")
+
 	app.Version(buildVersion(version, commit, date, builtBy))
 	app.VersionFlag.Short('v')
 	app.HelpFlag.Short('h')
@@ -118,7 +121,22 @@ func main() {
 			return
 		}
 		log.Infof(color.New(color.Bold).Sprintf("release succeeded after %0.2fs", time.Since(start).Seconds()))
+	case commitValidCmd.FullCommand():
+		start := time.Now()
+		err := valid()
+		if err != nil {
+			log.WithError(err).Errorf(color.New(color.Bold).Sprintf("valid failed after %0.2fs", time.Since(start).Seconds()))
+			os.Exit(1)
+			return
+		}
+		log.Infof(color.New(color.Bold).Sprintf("the lastest 20 commits is valid after %0.2fs", time.Since(start).Seconds()))
 	}
+}
+
+func valid() error {
+	pipe := commitvalid.Pipe{}
+	err := pipe.Run()
+	return err
 }
 
 func checkConfig(filename string) error {
