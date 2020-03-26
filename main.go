@@ -22,7 +22,7 @@ import (
 
 // nolint: gochecknoglobals
 var (
-	version = "dev"
+	version = "zoelov"
 	commit  = ""
 	date    = ""
 	builtBy = ""
