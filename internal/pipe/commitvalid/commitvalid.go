@@ -69,6 +69,7 @@ const (
 	FEAT     CommitType = "feat"
 	FIX      CommitType = "fix"
 	DOCS     CommitType = "docs"
+	DOC      CommitType = "doc"
 	STYLE    CommitType = "style"
 	REFACTOR CommitType = "refactor"
 	TEST     CommitType = "test"
@@ -98,6 +99,7 @@ func valid(message string) error {
 		case string(FEAT):
 		case string(FIX):
 		case string(DOCS):
+		case string(DOC):
 		case string(STYLE):
 		case string(REFACTOR):
 		case string(TEST):
