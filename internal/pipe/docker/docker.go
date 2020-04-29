@@ -173,9 +173,9 @@ func process(ctx *context.Context, docker config.Docker, bins []*artifact.Artifa
 	if strings.TrimSpace(docker.SkipPush) == "true" {
 		return pipe.Skip("docker.skip_push is set")
 	}
-	if ctx.SkipPublish {
-		return pipe.ErrSkipPublishEnabled
-	}
+	// if ctx.SkipPublish {
+	// 	return pipe.ErrSkipPublishEnabled
+	// }
 	if ctx.Config.Release.Draft {
 		return pipe.Skip("release is marked as draft")
 	}

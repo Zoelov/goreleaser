@@ -4,6 +4,7 @@ package pipeline
 import (
 	"fmt"
 
+	"github.com/goreleaser/goreleaser/internal/pipe/dockerpublish"
 	"github.com/goreleaser/goreleaser/internal/pipe/semver"
 
 	"github.com/goreleaser/goreleaser/internal/pipe/archive"
@@ -53,4 +54,5 @@ var Pipeline = []Piper{
 	sign.Pipe{},            // sign artifacts
 	docker.Pipe{},          // create and push docker images
 	publish.Pipe{},         // publishes artifacts
+	dockerpublish.Pipe{},   // publish docker when snapshot
 }
