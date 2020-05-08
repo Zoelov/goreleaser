@@ -173,7 +173,7 @@ func buildFormatlog(ctx *context.Context, entries []string) error {
 	if ctx.SkipPublish {
 		return nil
 	}
-	fmt.Println("entries len:", len(entries))
+	// log.Debugf("entries len:%v", len(entries))
 
 	c, err := client.New(ctx)
 	if err != nil {
@@ -259,7 +259,7 @@ func buildFormatlog(ctx *context.Context, entries []string) error {
 
 func truncation(message string, prefix string) string {
 	theLog := strings.Replace(message, prefix, "", 1)
-	theLog = strings.TrimSuffix(theLog[0:len(theLog)-1], " ")
+	theLog = strings.TrimSuffix(theLog, " ")
 	theLog = strings.TrimPrefix(theLog, " ")
 
 	return theLog
